@@ -1,0 +1,65 @@
+--- 
+networks: 
+  efk: 
+    driver: bridge
+services: 
+  elasticsearch: 
+    build: 
+      args: 
+        ELK_VERSION: $ELK_VERSION
+      context: elasticsearch/
+    environment: 
+      ELASTIC_PASSWORD: ies@2020
+      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+      discovery.type: single-node
+    networks: 
+      - efk
+    ports: 
+      - "9200:9200"
+    volumes: 
+      -  
+        read_only: true
+        source: ./elasticsearch/config/elasticsearch.yml
+        target: /usr/share/elasticsearch/config/elasticsearch.yml
+        type: bind
+      - 
+        source: efk
+        target: /usr/share/elasticsearch/data
+        type: volume
+  fluentd: 
+    build: ./fluentd
+    links: 
+      - elasticsearch
+    user: root
+    logging: 
+      driver: json-file
+      options: 
+        max-file: "5"
+        max-size: 100m
+    networks: 
+      - efk
+    ports: 
+      - "24224:24224"
+      - "24224:24224/udp"
+    volumes: 
+      - "./fluentd/conf:/fluentd/etc"
+  kibana: 
+    build: 
+      args: 
+        ELK_VERSION: $ELK_VERSION
+      context: kibana/
+    depends_on: 
+      - elasticsearch
+    networks: 
+      - efk
+    ports: 
+      - "5601:5601"
+    volumes: 
+      - 
+        read_only: true
+        source: ./kibana/config/kibana.yml
+        target: /usr/share/kibana/config/kibana.yml
+        type: bind
+version: "3.2"
+volumes: 
+  efk: ~
